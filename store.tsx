@@ -20,10 +20,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setData({ ...INITIAL_DATA, ...JSON.parse(stored) });
+        const parsed = JSON.parse(stored);
+        
+        // Defensive coding: Ensure critical arrays and objects exist even if local storage is partial/corrupt
+        // This prevents "cannot read properties of undefined" (white screen) errors
+        const sanitized: AppData = {
+          ...INITIAL_DATA,
+          ...parsed,
+          settings: { 
+            ...INITIAL_DATA.settings, 
+            ...(parsed.settings || {}) 
+          },
+          assets: Array.isArray(parsed.assets) ? parsed.assets : INITIAL_DATA.assets,
+          trades: Array.isArray(parsed.trades) ? parsed.trades : INITIAL_DATA.trades,
+          snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots : INITIAL_DATA.snapshots,
+          expenses: Array.isArray(parsed.expenses) ? parsed.expenses : INITIAL_DATA.expenses,
+          savingsBuckets: Array.isArray(parsed.savingsBuckets) ? parsed.savingsBuckets : INITIAL_DATA.savingsBuckets,
+          savingsTransactions: Array.isArray(parsed.savingsTransactions) ? parsed.savingsTransactions : INITIAL_DATA.savingsTransactions,
+          emergencyTransactions: Array.isArray(parsed.emergencyTransactions) ? parsed.emergencyTransactions : INITIAL_DATA.emergencyTransactions,
+          healthLogs: Array.isArray(parsed.healthLogs) ? parsed.healthLogs : INITIAL_DATA.healthLogs,
+        };
+
+        setData(sanitized);
       }
     } catch (e) {
       console.error("Failed to load data", e);
+      // If load fails, we stay with INITIAL_DATA, which is safe.
     } finally {
       setLoaded(true);
     }
@@ -31,7 +53,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error("Failed to save data", e);
+      }
     }
   }, [data, loaded]);
 
@@ -41,6 +67,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resetData = () => {
     setData(INITIAL_DATA);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error("Failed to clear storage", e);
+    }
   };
 
   const importData = (json: string): boolean => {
@@ -48,7 +79,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const parsed = JSON.parse(json);
       // Basic validation check
       if (parsed && typeof parsed === 'object') {
-        setData({ ...INITIAL_DATA, ...parsed });
+        // Apply same sanitization logic as load
+        const sanitized: AppData = {
+          ...INITIAL_DATA,
+          ...parsed,
+          settings: { ...INITIAL_DATA.settings, ...(parsed.settings || {}) },
+          assets: Array.isArray(parsed.assets) ? parsed.assets : [],
+          healthLogs: Array.isArray(parsed.healthLogs) ? parsed.healthLogs : [],
+          expenses: Array.isArray(parsed.expenses) ? parsed.expenses : [],
+          snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots : [],
+          savingsBuckets: Array.isArray(parsed.savingsBuckets) ? parsed.savingsBuckets : [],
+          savingsTransactions: Array.isArray(parsed.savingsTransactions) ? parsed.savingsTransactions : [],
+          emergencyTransactions: Array.isArray(parsed.emergencyTransactions) ? parsed.emergencyTransactions : [],
+          trades: Array.isArray(parsed.trades) ? parsed.trades : [],
+        };
+        setData(sanitized);
         return true;
       }
       return false;
@@ -57,7 +102,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  if (!loaded) return null;
+  if (!loaded) return null; // Or a loading spinner if preferred
 
   return (
     <StoreContext.Provider value={{ data, updateData, resetData, importData }}>
