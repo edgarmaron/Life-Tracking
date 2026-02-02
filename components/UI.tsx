@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
@@ -81,12 +82,12 @@ export const EmptyState: React.FC<{ message: string; action?: React.ReactNode }>
   </div>
 );
 
-export const formatMoney = (amount: number, currency: 'RON' | 'EUR' = 'RON') => {
+export const formatMoney = (amount: number, currency: 'RON' | 'EUR' = 'RON', decimals: number = 2) => {
   return new Intl.NumberFormat('ro-RO', {
     style: 'currency',
     currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
   }).format(amount);
 };
 
