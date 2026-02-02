@@ -1,3 +1,4 @@
+
 export type AssetType = 'ETF' | 'Stock' | 'Crypto';
 export type TradeType = 'Buy' | 'Sell';
 
@@ -6,6 +7,14 @@ export interface Asset {
   name: string;
   type: AssetType;
   notes?: string;
+}
+
+export interface Deposit {
+  id: string;
+  assetId: string;
+  date: string;
+  amount: number; // EUR
+  note?: string;
 }
 
 export interface Trade {
@@ -86,6 +95,7 @@ export interface Settings {
 export interface AppData {
   assets: Asset[];
   trades: Trade[];
+  deposits: Deposit[];
   snapshots: Snapshot[];
   expenses: Expense[];
   savingsBuckets: SavingsBucket[];
@@ -118,6 +128,7 @@ export const DEFAULT_CATEGORIES = [
 export const INITIAL_DATA: AppData = {
   assets: [],
   trades: [],
+  deposits: [],
   snapshots: [],
   expenses: [],
   savingsBuckets: [],

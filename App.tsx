@@ -17,19 +17,20 @@ interface ErrorBoundaryState {
 
 // Error Boundary for stability
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = {
-    hasError: false
-  };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-  static getDerivedStateFromError(error: any): ErrorBoundaryState {
+  public static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  public componentDidCatch(error: any, errorInfo: any) {
     console.error("ErrorBoundary caught error:", error, errorInfo);
   }
 
-  render() {
+  public render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center p-6 text-center bg-red-50">

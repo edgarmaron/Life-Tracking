@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { useStore } from '../store';
 import { Card, Button, formatMoney, HeroNumber } from '../components/UI';
@@ -8,30 +9,29 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
 
   const stats = useMemo(() => {
     // 1. Investments Logic
+    // Calculated as: For each asset, use Latest Price (Market Value) if available, otherwise Invested Amount.
     let investmentValueEUR = 0;
-    let investmentStartEUR = 0;
-
+    
     data.assets.forEach(asset => {
-        const snapshots = data.snapshots
+        // Find latest snapshot
+        const assetSnapshots = data.snapshots
             .filter(s => s.assetId === asset.id)
-            .sort((a, b) => {
-               const timeA = new Date(a.date).getTime();
-               const timeB = new Date(b.date).getTime();
-               if (timeA !== timeB) return timeA - timeB;
-               return (a.createdAt || 0) - (b.createdAt || 0);
-            });
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
-        const startPrice = snapshots[0]?.price || 0;
-        const latestPrice = snapshots[snapshots.length - 1]?.price || 0;
-        
-        investmentValueEUR += latestPrice;
-        investmentStartEUR += startPrice;
+        const latestSnapshot = assetSnapshots.length > 0 ? assetSnapshots[assetSnapshots.length - 1] : null;
+
+        if (latestSnapshot) {
+            investmentValueEUR += latestSnapshot.price;
+        } else {
+            // Fallback to deposits
+            const assetDeposits = data.deposits.filter(d => d.assetId === asset.id);
+            const invested = assetDeposits.reduce((acc, d) => acc + d.amount, 0);
+            investmentValueEUR += invested;
+        }
     });
 
     const investmentValueRON = investmentValueEUR * data.settings.eurRate;
-    const invProfitEUR = investmentValueEUR - investmentStartEUR;
-    const invProfitPercent = investmentStartEUR > 0 ? (invProfitEUR / investmentStartEUR) * 100 : 0;
-
+    
     // 2. Savings
     const savingsRON = data.savingsBuckets.reduce((acc, b) => {
         const bucketTx = data.savingsTransactions.filter(t => t.bucketId === b.id);
@@ -76,8 +76,6 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
         netWorthRON,
         investmentValueEUR,
         investmentValueRON,
-        invProfitEUR,
-        invProfitPercent,
         savingsRON,
         emergencyRON,
         expensesRON,
@@ -108,7 +106,7 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
               <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-                    <span className="text-slate-300 text-sm font-medium">Investments</span>
+                    <span className="text-slate-300 text-sm font-medium">Investments (Est.)</span>
                   </div>
                   <span className="font-bold text-white">{formatMoney(stats.investmentValueRON)}</span>
               </div>
@@ -139,8 +137,8 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
              <HeroNumber 
                value={formatMoney(stats.investmentValueEUR, 'EUR')}
                label="Portfolio Value"
-               subValue={`${stats.invProfitEUR >= 0 ? '+' : ''}${formatMoney(stats.invProfitEUR, 'EUR')} (${stats.invProfitPercent >= 0 ? '+' : ''}${stats.invProfitPercent.toFixed(2)}%)`}
-               subColor={stats.invProfitEUR >= 0 ? 'text-emerald-400' : 'text-red-400'}
+               subValue="Current market value"
+               subColor="text-slate-400"
              />
         </div>
       </Card>

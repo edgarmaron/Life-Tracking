@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppData, INITIAL_DATA } from './types';
 
@@ -33,6 +34,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           },
           assets: Array.isArray(parsed.assets) ? parsed.assets : INITIAL_DATA.assets,
           trades: Array.isArray(parsed.trades) ? parsed.trades : INITIAL_DATA.trades,
+          deposits: Array.isArray(parsed.deposits) ? parsed.deposits : INITIAL_DATA.deposits,
           snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots : INITIAL_DATA.snapshots,
           expenses: Array.isArray(parsed.expenses) ? parsed.expenses : INITIAL_DATA.expenses,
           savingsBuckets: Array.isArray(parsed.savingsBuckets) ? parsed.savingsBuckets : INITIAL_DATA.savingsBuckets,
@@ -92,6 +94,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           savingsTransactions: Array.isArray(parsed.savingsTransactions) ? parsed.savingsTransactions : [],
           emergencyTransactions: Array.isArray(parsed.emergencyTransactions) ? parsed.emergencyTransactions : [],
           trades: Array.isArray(parsed.trades) ? parsed.trades : [],
+          deposits: Array.isArray(parsed.deposits) ? parsed.deposits : [],
         };
         setData(sanitized);
         return true;
