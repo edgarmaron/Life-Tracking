@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from 'react';
+import React, { Component, ReactNode, useState } from 'react';
 import { StoreProvider } from './store';
 import { Layout } from './components/Layout';
 import { HomeScreen } from './screens/Home';
@@ -16,7 +16,7 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary for stability
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };

@@ -1,4 +1,5 @@
 
+
 export type AssetType = 'ETF' | 'Stock' | 'Crypto';
 export type TradeType = 'Buy' | 'Sell';
 
@@ -41,6 +42,7 @@ export interface Expense {
   amount: number;
   date: string;
   category: string;
+  subCategory?: string;
   merchant: string;
   paymentMethod?: string;
   notes?: string;
@@ -108,19 +110,28 @@ export interface AppData {
 export const DEFAULT_CATEGORIES = [
   'Groceries',
   'Eating Out',
+  'Drinks & Nightlife',
   'Car',
   'Transport',
   'Rent / Mortgage',
   'Utilities',
+  'Electronics',
   'Health & Pharmacy',
+  'Beauty & Make-up',
+  'Clothing',
   'Insurance',
   'Subscriptions',
   'Shopping',
+  'Home & Garden',
   'Kids',
+  'Pets',
   'Gifts & Giving',
   'Travel',
   'Personal',
+  'Hobbies',
   'Education',
+  'Entertainment',
+  'Services',
   'Charity',
   'Other'
 ];

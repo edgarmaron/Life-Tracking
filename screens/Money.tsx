@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo } from 'react';
 import { useStore, generateId, todayStr } from '../store';
 import { Card, Button, Input, Select, EmptyState, formatMoney, HeroNumber } from '../components/UI';
-import { Plus, Trash2, Edit2, ArrowLeft, X, Search, ChevronDown, PieChart, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, Edit2, ArrowLeft, X, Search, ChevronDown, PieChart as PieChartIcon, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import { Expense, SavingsBucket, SavingsTransaction, EmergencyTransaction } from '../types';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 // Helper: robust date string check to avoid timezone issues with `new Date("YYYY-MM-DD")`
 // dateStr is "YYYY-MM-DD". targetMonth is 0-indexed (0=Jan).
@@ -164,14 +166,32 @@ const ExpensesView: React.FC = () => {
 
   const thisMonthTotal = currentMonthExpenses.reduce((acc, ex) => acc + ex.amount, 0);
 
-  const categoryStats = useMemo(() => {
+  const pieData = useMemo(() => {
     const stats: Record<string, number> = {};
     currentMonthExpenses.forEach(ex => {
       stats[ex.category] = (stats[ex.category] || 0) + ex.amount;
     });
-    return Object.entries(stats)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
+    
+    const sorted = Object.entries(stats).sort(([, a], [, b]) => b - a);
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
+    
+    if (sorted.length <= 5) {
+        return sorted.map(([name, value], index) => ({
+            name, value, color: COLORS[index % COLORS.length]
+        }));
+    }
+    
+    const top = sorted.slice(0, 4); // Top 4
+    const other = sorted.slice(4).reduce((acc, [, val]) => acc + val, 0); // Rest
+    
+    const result = top.map(([name, value], index) => ({
+        name, value, color: COLORS[index]
+    }));
+    
+    if (other > 0) {
+        result.push({ name: 'Other', value: other, color: '#94a3b8' }); // Slate-400 for Other
+    }
+    return result;
   }, [currentMonthExpenses]);
 
   // Comparison Logic
@@ -275,12 +295,13 @@ const ExpensesView: React.FC = () => {
     const date = formData.get('date') as string;
     const paymentMethod = formData.get('paymentMethod') as string;
     const notes = formData.get('notes') as string;
+    const subCategory = formData.get('subCategory') as string;
 
     if (editingExpense) {
       // Edit existing
       const updatedExpenses = data.expenses.map(ex => 
         ex.id === editingExpense.id 
-          ? { ...ex, amount, merchant, date, category: cat, paymentMethod, notes } 
+          ? { ...ex, amount, merchant, date, category: cat, subCategory, paymentMethod, notes } 
           : ex
       );
       updateData({ expenses: updatedExpenses });
@@ -291,6 +312,7 @@ const ExpensesView: React.FC = () => {
         amount,
         date,
         category: cat,
+        subCategory,
         merchant,
         paymentMethod,
         notes,
@@ -347,6 +369,12 @@ const ExpensesView: React.FC = () => {
             onSelect={setSelectedCategory}
           />
           <Input 
+             name="subCategory" 
+             label="Sub-category (Optional)" 
+             placeholder="e.g. Coffee, Makeup, Tech" 
+             defaultValue={editingExpense?.subCategory}
+          />
+          <Input 
              name="date" 
              type="date" 
              label="Date" 
@@ -400,7 +428,7 @@ const ExpensesView: React.FC = () => {
       </div>
 
       <Card className="bg-orange-50/50 border-orange-100">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex justify-between items-start mb-4">
            <div>
              <div className="text-orange-900/60 text-xs font-bold uppercase tracking-wider mb-1">
                Spent in {viewDate.toLocaleDateString('en-US', { month: 'short' })}
@@ -408,17 +436,46 @@ const ExpensesView: React.FC = () => {
              <HeroNumber value={formatMoney(thisMonthTotal)} subColor="text-orange-900" />
            </div>
            <div className="p-3 bg-orange-100 rounded-2xl text-orange-500">
-             <PieChart size={32} />
+             <PieChartIcon size={32} />
            </div>
         </div>
+
+        {pieData.length > 0 && (
+          <div className="h-48 w-full mb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number) => formatMoney(value)}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         
-        {categoryStats.length > 0 && (
+        {pieData.length > 0 && (
           <div className="space-y-3 border-t border-orange-100 pt-4">
-             <div className="text-[10px] font-bold text-orange-900/50 uppercase tracking-wide">Top Categories</div>
-             {categoryStats.map(([cat, amount]) => (
-               <div key={cat} className="flex justify-between items-center text-sm">
-                  <span className="font-bold text-orange-900">{cat}</span>
-                  <span className="font-medium text-orange-800 bg-orange-100 px-2 py-0.5 rounded-lg">{formatMoney(amount)}</span>
+             <div className="text-[10px] font-bold text-orange-900/50 uppercase tracking-wide">Top Breakdown</div>
+             {pieData.map((cat) => (
+               <div key={cat.name} className="flex justify-between items-center text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                    <span className="font-bold text-orange-900">{cat.name}</span>
+                  </div>
+                  <span className="font-medium text-orange-800 bg-orange-100 px-2 py-0.5 rounded-lg">{formatMoney(cat.value)}</span>
                </div>
              ))}
           </div>
@@ -475,9 +532,14 @@ const ExpensesView: React.FC = () => {
           >
             <div className="flex flex-col">
               <span className="font-bold text-slate-900 text-base mb-0.5">{expense.merchant}</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase tracking-wide">{expense.category}</span>
-                 <span className="text-xs text-slate-400">{new Date(expense.date).toLocaleDateString()}</span>
+                 {expense.subCategory && (
+                   <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase tracking-wide flex items-center">
+                     <span className="text-slate-300 mr-1">/</span> {expense.subCategory}
+                   </span>
+                 )}
+                 <span className="text-xs text-slate-400 ml-1">{new Date(expense.date).toLocaleDateString()}</span>
               </div>
             </div>
             <div className="flex items-center gap-4">
