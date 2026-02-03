@@ -272,7 +272,10 @@ const ExpensesView: React.FC = () => {
       const today = new Date();
       for(let i=11; i>=0; i--) {
           const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-          const total = data.expenses.filter(e => matchesMonth(e.date, d.getFullYear(), d.getMonth())).reduce((acc: number,e) => acc + Number(e.amount), 0);
+          // Ensure e.amount is treated as number and acc accumulates numbers
+          const total = data.expenses
+            .filter(e => matchesMonth(e.date, d.getFullYear(), d.getMonth()))
+            .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
           result.push({ name: d.toLocaleDateString('en-US',{month:'short'}), value: total });
       }
       return result;
@@ -288,7 +291,7 @@ const ExpensesView: React.FC = () => {
           cat,
           limit,
           spent: spent[cat] || 0,
-          pct: Math.min(100, ((spent[cat] || 0) / limit) * 100)
+          pct: Math.min(100, ((spent[cat] || 0) / Number(limit)) * 100)
       })).sort((a,b) => b.pct - a.pct);
   }, [currentMonthExpenses, data.settings.categoryBudgets]);
 
@@ -576,7 +579,6 @@ const ExpensesView: React.FC = () => {
 };
 
 // ... SavingsView and EmergencyView ...
-// (Kept as is, assuming standard components used)
 const SavingsView: React.FC = () => {
     const { data, updateData } = useStore();
     const [editingBucket, setEditingBucket] = useState(false);

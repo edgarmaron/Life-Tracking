@@ -10,13 +10,27 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
   const [showWeeklyReview, setShowWeeklyReview] = useState(false);
 
   const stats = useMemo(() => {
-    // Basic Calculations
-    const totalInvestedEUR = data.deposits.reduce((acc, d) => acc + d.amount, 0);
+    // Investment Value Calculation (Matching Investments.tsx logic)
     const investmentValueEUR = data.assets.reduce((acc, asset) => {
+        // Get snapshots sorted descending (newest first)
         const snaps = data.snapshots.filter(s => s.assetId === asset.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const latestPrice = snaps[0]?.price || 0;
-        return acc + (latestPrice > 0 ? latestPrice : 0); // Simplified for prompt
-    }, 0) || totalInvestedEUR; // Fallback to invested if no prices
+        const latestSnap = snaps[0];
+        
+        const assetDeposits = data.deposits.filter(d => d.assetId === asset.id);
+        const investedAmount = assetDeposits.reduce((sum, d) => sum + d.amount, 0);
+
+        let currentValue = investedAmount;
+        
+        if (latestSnap) {
+             // Add deposits made AFTER the snapshot
+             const subsequentFlow = assetDeposits
+                .filter(d => d.date > latestSnap.date)
+                .reduce((sum, d) => sum + d.amount, 0);
+             currentValue = latestSnap.price + subsequentFlow;
+        }
+        
+        return acc + currentValue;
+    }, 0);
 
     const investmentValueRON = investmentValueEUR * data.settings.eurRate;
     
@@ -27,7 +41,11 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
     }, 0);
 
     const emergencyRON = data.emergencyTransactions.reduce((acc, t) => t.type === 'Add' ? acc + t.amount : acc - t.amount, 0);
+    
+    // Net Worth Calculation
+    const rate = data.settings.eurRate || 4.97;
     const netWorthRON = investmentValueRON + savingsRON + emergencyRON;
+    const netWorthEUR = investmentValueEUR + (savingsRON / rate) + (emergencyRON / rate);
 
     // Monthly Expenses
     const now = new Date();
@@ -42,7 +60,6 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
 
     // --- SYSTEM HEALTH SCORE ---
     // Money: Green if saving something or net worth growing. Simple proxy: Expense count > 0 is good usage.
-    // Real logic: Expenses < last month OR Investment made recently.
     const moneyHealth = data.deposits.some(d => new Date(d.date).getMonth() === now.getMonth()) ? 'good' : 'neutral';
     
     // Health: Green if weight logged in last 7 days
@@ -54,10 +71,8 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
     const habitHealth = 'good'; // Placeholder for consistency score
 
     // --- FUTURE YOU PROJECTIONS ---
-    // Money: Avg Monthly Savings last 3 months
-    // For simplicity: Take current savings/emergency balance and add 5% monthly growth assumption or linear addition
-    const projectedNetWorth3m = netWorthRON * 1.05; // 5% growth placeholder
-    const projectedNetWorth1y = netWorthRON * 1.20; // 20% growth placeholder
+    // Money: Net Worth in 3 Months (EUR)
+    const projectedNetWorth3m = netWorthEUR * 1.05; // 5% growth placeholder
 
     // Health: Avg weight change last 4 weeks
     let weightTrend = 0;
@@ -76,11 +91,11 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
     else coachingMsg = "You're on track! Keep going.";
 
     // --- LONG TERM MEMORY ---
-    // Randomly comparisons
     const memoryMsg = "3 months ago, your Net Worth was 15% lower."; // Static for now
 
     return {
         netWorthRON,
+        netWorthEUR,
         investmentValueEUR,
         investmentValueRON,
         savingsRON,
@@ -89,7 +104,6 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
         healthHealth,
         habitHealth,
         projectedNetWorth3m,
-        projectedNetWorth1y,
         projectedWeight4w,
         latestWeight,
         coachingMsg,
@@ -123,20 +137,20 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
         <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="relative z-10">
           <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Net Worth</div>
-          <div className="text-4xl font-extrabold mb-8 tracking-tight text-white">{formatMoney(stats.netWorthRON)}</div>
+          <div className="text-4xl font-extrabold mb-8 tracking-tight text-white">{formatMoney(stats.netWorthEUR, 'EUR')}</div>
           
           <div className="grid grid-cols-3 gap-4">
               <div>
                  <div className="text-slate-400 text-[10px] font-bold uppercase">Invested</div>
-                 <div className="text-white font-bold">{formatMoney(stats.investmentValueRON)}</div>
+                 <div className="text-white font-bold">{formatMoney(stats.investmentValueEUR, 'EUR')}</div>
               </div>
               <div>
                  <div className="text-slate-400 text-[10px] font-bold uppercase">Saved</div>
-                 <div className="text-white font-bold">{formatMoney(stats.savingsRON)}</div>
+                 <div className="text-white font-bold">{formatMoney(stats.savingsRON, 'RON')}</div>
               </div>
               <div>
                  <div className="text-slate-400 text-[10px] font-bold uppercase">Emergency</div>
-                 <div className="text-white font-bold">{formatMoney(stats.emergencyRON)}</div>
+                 <div className="text-white font-bold">{formatMoney(stats.emergencyRON, 'RON')}</div>
               </div>
           </div>
         </div>
@@ -157,7 +171,7 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
             <div>
                <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
                   <span>Net Worth in 3 Months</span>
-                  <span className="text-blue-600">{formatMoney(stats.projectedNetWorth3m)}</span>
+                  <span className="text-blue-600">{formatMoney(stats.projectedNetWorth3m, 'EUR')}</span>
                </div>
                <ProgressBar value={80} max={100} colorClass="bg-blue-500" />
             </div>
