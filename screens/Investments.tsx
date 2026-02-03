@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useStore, generateId, todayStr } from '../store';
 import { Card, Button, Input, Select, EmptyState, formatMoney, HeroNumber } from '../components/UI';
-import { Plus, Trash2, Edit2, X, Check, Wallet, ChevronLeft, ChevronRight, Calendar, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Wallet, ChevronLeft, ChevronRight, Calendar, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Asset, AssetType, Snapshot, Deposit } from '../types';
 
@@ -53,12 +53,9 @@ export const InvestmentsScreen: React.FC = () => {
       const investedAmount = assetDeposits.reduce((acc, d) => acc + d.amount, 0);
 
       // 3. Current Valuation
-      // If we have a market price, that is the current value. 
-      // If not, we fall back to invested amount.
       const currentValue = hasPrice ? latestPrice : investedAmount;
 
       // 4. Profit/Loss Percentage
-      // ((Current Value - Invested) / Invested) * 100
       let priceChangePercent = 0;
       if (investedAmount > 0) {
         priceChangePercent = ((currentValue - investedAmount) / investedAmount) * 100;
@@ -94,18 +91,15 @@ export const InvestmentsScreen: React.FC = () => {
     const netFlow = totalDeposited - totalWithdrawn;
 
     // 2. End of Month Value (Portfolio Value at that time)
-    // Construct robust EOM date string YYYY-MM-DD
     const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
     const endOfMonthStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
     let endOfMonthValue = 0;
     data.assets.forEach(asset => {
-        // Invested up to EOM
         const invested = data.deposits
             .filter(d => d.assetId === asset.id && d.date <= endOfMonthStr)
             .reduce((sum, d) => sum + d.amount, 0);
             
-        // Latest Snapshot up to EOM
         const relevantSnapshots = data.snapshots
             .filter(s => s.assetId === asset.id && s.date <= endOfMonthStr)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -274,14 +268,12 @@ export const InvestmentsScreen: React.FC = () => {
     const existingIndex = nextSnapshots.findIndex(s => s.assetId === assetId && s.date === date);
     
     if (existingIndex >= 0) {
-        // Update existing (upsert)
         nextSnapshots[existingIndex] = {
             ...nextSnapshots[existingIndex],
             price,
-            createdAt: Date.now() // Update timestamp to ensure it's latest
+            createdAt: Date.now()
         };
     } else {
-        // Insert new
         nextSnapshots.push({
             id: generateId(),
             assetId,
@@ -290,11 +282,9 @@ export const InvestmentsScreen: React.FC = () => {
             createdAt: Date.now()
         });
     }
-    // This will trigger a re-render of portfolio and detail view
     updateData({ snapshots: nextSnapshots });
   };
 
-  // --- Delete Logic ---
   const requestDeleteAsset = (assetId: string) => {
     setDeleteConfirmAssetId(assetId);
   };
@@ -313,7 +303,6 @@ export const InvestmentsScreen: React.FC = () => {
     }
   };
 
-  // --- Sub-component Handlers ---
   const handleUpdateSnapshot = (id: string, newDate: string, newPrice: number) => {
     const updatedSnapshots = data.snapshots.map(s => s.id === id ? { ...s, date: newDate, price: newPrice } : s);
     updateData({ snapshots: updatedSnapshots });
@@ -339,7 +328,7 @@ export const InvestmentsScreen: React.FC = () => {
       <div className="p-4 space-y-6 animate-in slide-in-from-right duration-300">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-900">Add Investment</h2>
-          <Button variant="ghost" onClick={() => setView('list')}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setView('list')} className="w-12 h-12 rounded-full p-0"><X size={20}/></Button>
         </div>
         <form onSubmit={handleAddAsset} className="space-y-6">
           <Input name="name" label="Asset Name (e.g., VWCE, BTC)" required autoFocus />
@@ -370,7 +359,7 @@ export const InvestmentsScreen: React.FC = () => {
       <div className="p-4 space-y-6 animate-in slide-in-from-right duration-300">
          <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-900">Add / Withdraw</h2>
-          <Button variant="ghost" onClick={() => setView('list')}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setView('list')} className="w-12 h-12 rounded-full p-0"><X size={20}/></Button>
         </div>
         <form onSubmit={handleDeposit} className="space-y-6">
            <Select name="assetId" label="Asset" defaultValue={selectedAssetId || ''} required>
@@ -408,36 +397,32 @@ export const InvestmentsScreen: React.FC = () => {
     );
   }
 
-  // --- Main List View with Tabs ---
   return (
     <div className="p-4 space-y-6 animate-in fade-in duration-500 pb-24">
       {/* View Tabs */}
-      <div className="flex p-1 bg-white border border-slate-200 rounded-xl mb-4 shadow-sm">
-        <button onClick={() => setListTab('portfolio')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${listTab === 'portfolio' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>Portfolio</button>
-        <button onClick={() => setListTab('activity')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${listTab === 'activity' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>Monthly Activity</button>
+      <div className="flex p-1 bg-slate-100/80 backdrop-blur rounded-2xl mb-4">
+        <button onClick={() => setListTab('portfolio')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${listTab === 'portfolio' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Portfolio</button>
+        <button onClick={() => setListTab('activity')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${listTab === 'activity' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Activity</button>
       </div>
 
       {listTab === 'portfolio' ? (
         <>
-            {/* Portfolio Index Card */}
-            <Card variant="primary" className="relative overflow-hidden bg-slate-900">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                <div className="relative z-10">
+            {/* Portfolio Index Card - LIGHT THEME */}
+            <Card variant="secondary">
                 <HeroNumber 
                     value={formatMoney(totalCurrentValue, 'EUR')}
                     label="Total Portfolio Value"
                     subValue={`Net Invested: ${formatMoney(totalInvested, 'EUR')}`}
                 />
-                </div>
             </Card>
 
-            <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" onClick={() => setView('add')} icon={Plus} className="px-2 text-xs">New Asset</Button>
-                <Button variant="primary" onClick={() => setView('deposit')} icon={Wallet} className="px-2 text-xs">Deposit</Button>
+            <div className="grid grid-cols-2 gap-3">
+                <Button variant="secondary" onClick={() => setView('add')} icon={Plus} className="text-xs h-10">New Asset</Button>
+                <Button variant="primary" onClick={() => setView('deposit')} icon={Wallet} className="text-xs h-10">Deposit</Button>
             </div>
 
             <div className="space-y-4">
-                <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider px-1">Holdings</h3>
+                <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider px-1">Holdings</h3>
                 {portfolio.length === 0 ? (
                 <EmptyState message="No assets tracked" />
                 ) : (
@@ -445,30 +430,26 @@ export const InvestmentsScreen: React.FC = () => {
                     <div 
                     key={asset.id} 
                     onClick={() => { setSelectedAssetId(asset.id); setView('detail'); }}
-                    className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all cursor-pointer hover:shadow-md"
+                    className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all cursor-pointer hover:shadow-md"
                     >
                     <div className="flex justify-between items-start">
                         <div>
                         <div className="font-bold text-lg text-slate-900 mb-1">{asset.name}</div>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-wide">{asset.type}</span>
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full uppercase tracking-wide">{asset.type}</span>
                             {asset.hasPrice ? (
-                              <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide ${asset.priceChangePercent >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                                  MARKET {asset.priceChangePercent > 0 ? '+' : ''}{asset.priceChangePercent.toFixed(1)}%
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${asset.priceChangePercent >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                  {asset.priceChangePercent > 0 ? '+' : ''}{asset.priceChangePercent.toFixed(1)}%
                               </span>
-                            ) : (
-                              <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-slate-100 text-slate-400">
-                                  No market price
-                              </span>
-                            )}
+                            ) : null}
                         </div>
                         </div>
                         <div className="text-right flex flex-col items-end">
                           <div className="font-extrabold text-lg text-slate-900">
                              {formatMoney(asset.currentValue, 'EUR')}
                           </div>
-                          <div className="text-xs text-slate-400 mt-0.5 font-medium">
-                             Invested: {formatMoney(asset.investedAmount, 'EUR')}
+                          <div className="text-xs text-slate-400 mt-1 font-medium">
+                             Inv: {formatMoney(asset.investedAmount, 'EUR')}
                           </div>
                         </div>
                     </div>
@@ -505,7 +486,7 @@ export const InvestmentsScreen: React.FC = () => {
             
             {/* Monthly Stats */}
             <div className="grid grid-cols-2 gap-3">
-                 <Card className="bg-white border-slate-200">
+                 <Card>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Net Flow</div>
                     <div className={`text-2xl font-extrabold ${activityStats.netFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {activityStats.netFlow > 0 ? '+' : ''}{formatMoney(activityStats.netFlow, 'EUR')}
@@ -519,7 +500,7 @@ export const InvestmentsScreen: React.FC = () => {
                         </div>
                     </div>
                  </Card>
-                 <Card className="bg-white border-slate-200">
+                 <Card>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">vs Prev Month</div>
                      <div className="flex items-center gap-1">
                         <div className={`text-lg font-extrabold ${activityStats.netFlowDiff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -531,16 +512,8 @@ export const InvestmentsScreen: React.FC = () => {
                      </div>
                  </Card>
             </div>
-
-            {/* End of Month Holdings */}
-            <Card className="bg-blue-50/50 border-blue-100">
-                <div className="text-blue-900/60 text-xs font-bold uppercase tracking-wider mb-1">Portfolio Value (End of Month)</div>
-                <div className="text-3xl font-extrabold text-blue-900">{formatMoney(activityStats.endOfMonthValue, 'EUR')}</div>
-                <div className="text-xs text-blue-400 mt-1 font-medium">Total market value at end of month</div>
-            </Card>
             
-            {/* Trend Chart */}
-            <Card className="bg-white border-slate-200">
+            <Card className="bg-white">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-4">4-Month Net Flow Trend</div>
                 <div className="flex items-end justify-between h-24 gap-2">
                     {activityStats.trend.map((t, i) => {
@@ -562,12 +535,11 @@ export const InvestmentsScreen: React.FC = () => {
                 </div>
             </Card>
             
-            {/* Top Assets */}
             <div className="space-y-3">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide px-1">Top Movers</div>
+                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide px-1">Top Movers</div>
                  {activityStats.topAssets.length === 0 ? <EmptyState message="No activity this month" /> : (
                      activityStats.topAssets.map(asset => (
-                         <div key={asset.id} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
+                         <div key={asset.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
                              <div className="font-bold text-slate-900">{asset.name}</div>
                              <div className={`font-bold ${asset.amount > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                  {asset.amount > 0 ? '+' : ''}{formatMoney(asset.amount, 'EUR')}
@@ -579,10 +551,9 @@ export const InvestmentsScreen: React.FC = () => {
           </div>
       )}
 
-      {/* Confirmation Modal */}
       {deleteConfirmAssetId && (
         <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-           <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+           <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
               <div className="flex flex-col items-center text-center">
                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-500">
                    <Trash2 size={24} />
@@ -590,7 +561,7 @@ export const InvestmentsScreen: React.FC = () => {
                  <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Asset?</h3>
                  <p className="text-slate-500 text-sm mb-6">This will remove the asset, its price history, and all deposits.</p>
                  <div className="flex gap-3 w-full">
-                    <Button variant="ghost" onClick={() => setDeleteConfirmAssetId(null)} className="flex-1 bg-slate-100">Cancel</Button>
+                    <Button variant="ghost" onClick={() => setDeleteConfirmAssetId(null)} className="flex-1 bg-slate-50">Cancel</Button>
                     <Button variant="danger" onClick={confirmDeleteAsset} className="flex-1">Delete</Button>
                  </div>
               </div>
@@ -657,8 +628,8 @@ const DetailView: React.FC<{
           className="flex gap-2 items-center p-3 bg-blue-50/50"
         >
           <div className="flex-1 space-y-2">
-            <input name="date" type="date" defaultValue={snap.date} className="w-full p-2 rounded-lg border border-blue-200 text-sm" required />
-            <input name="price" type="number" step="0.01" defaultValue={snap.price} className="w-full p-2 rounded-lg border border-blue-200 text-sm font-bold" placeholder="EUR" required />
+            <input name="date" type="date" defaultValue={snap.date} className="w-full p-2 rounded-xl border border-blue-200 text-sm" required />
+            <input name="price" type="number" step="0.01" defaultValue={snap.price} className="w-full p-2 rounded-xl border border-blue-200 text-sm font-bold" placeholder="EUR" required />
           </div>
           <div className="flex flex-col gap-2">
             <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg shadow-sm"><Check size={16}/></button>
@@ -701,9 +672,9 @@ const DetailView: React.FC<{
           className="flex gap-2 items-center p-3 bg-blue-50/50"
         >
            <div className="flex-1 space-y-2">
-             <input name="amount" type="number" step="0.01" defaultValue={dep.amount} className="w-full p-2 rounded-lg border border-blue-200 text-sm font-bold" />
-             <input name="date" type="date" defaultValue={dep.date} className="w-full p-2 rounded-lg border border-blue-200 text-sm" />
-             <input name="note" defaultValue={dep.note} placeholder="Note" className="w-full p-2 rounded-lg border border-blue-200 text-sm" />
+             <input name="amount" type="number" step="0.01" defaultValue={dep.amount} className="w-full p-2 rounded-xl border border-blue-200 text-sm font-bold" />
+             <input name="date" type="date" defaultValue={dep.date} className="w-full p-2 rounded-xl border border-blue-200 text-sm" />
+             <input name="note" defaultValue={dep.note} placeholder="Note" className="w-full p-2 rounded-xl border border-blue-200 text-sm" />
            </div>
            <div className="flex flex-col gap-2">
             <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg shadow-sm"><Check size={16}/></button>
@@ -735,14 +706,14 @@ const DetailView: React.FC<{
     <div className="p-4 pb-24 min-h-screen bg-slate-50 animate-in slide-in-from-right duration-300">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={onBack} className="w-10 h-10 p-0 rounded-full border border-slate-200 bg-white"><span className="text-xl">←</span></Button>
+          <Button variant="ghost" onClick={onBack} className="w-10 h-10 p-0 rounded-full border border-slate-200 bg-white"><ArrowLeft size={20} /></Button>
           <h2 className="text-2xl font-bold text-slate-900">{asset.name}</h2>
         </div>
         <div className="flex items-center gap-2">
             <Button 
               variant="secondary" 
               onClick={() => setIsUpdatePriceOpen(true)}
-              className="h-9 px-3 text-xs flex gap-2 shadow-none border border-emerald-100"
+              className="h-10 px-4 text-xs flex gap-2 shadow-sm"
             >
               <Edit2 size={14} /> Update Price
             </Button>
@@ -752,7 +723,7 @@ const DetailView: React.FC<{
                 e.stopPropagation();
                 onDelete();
               }} 
-              className="w-9 h-9 p-0 rounded-full border border-red-100 bg-red-50 text-red-500 hover:bg-red-100"
+              className="w-10 h-10 p-0 rounded-full border border-red-100 bg-red-50 text-red-500 hover:bg-red-100"
             >
               <Trash2 size={16} />
             </Button>
@@ -793,7 +764,7 @@ const DetailView: React.FC<{
              <Input name="price" type="number" step="0.01" label="Total Value (EUR)" defaultValue={asset.latestPrice || ''} autoFocus required className="text-lg font-mono" />
              <Input name="date" type="date" label="Date" defaultValue={todayStr()} required />
              <div className="flex gap-3 pt-2">
-               <Button variant="ghost" onClick={() => setIsUpdatePriceOpen(false)} className="flex-1 bg-slate-100">Cancel</Button>
+               <Button variant="ghost" onClick={() => setIsUpdatePriceOpen(false)} className="flex-1 bg-slate-50">Cancel</Button>
                <Button type="submit" className="flex-1">Save Price</Button>
              </div>
           </form>
@@ -804,7 +775,7 @@ const DetailView: React.FC<{
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="date" hide />
               <YAxis domain={['auto', 'auto']} hide />
               <Tooltip 
@@ -823,14 +794,14 @@ const DetailView: React.FC<{
       </Card>
 
       {/* Tabs */}
-      <div className="flex p-1 bg-white border border-slate-200 rounded-xl mb-4">
-        <button onClick={() => setTab('deposits')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'deposits' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}>Deposits & Withdrawals</button>
-        <button onClick={() => setTab('prices')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'prices' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}>Price History</button>
+      <div className="flex p-1 bg-slate-100/80 backdrop-blur rounded-2xl mb-4">
+        <button onClick={() => setTab('deposits')} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === 'deposits' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Deposits & Withdrawals</button>
+        <button onClick={() => setTab('prices')} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === 'prices' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Price History</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm min-h-[200px]">
         {tab === 'prices' ? (
-           <div className="divide-y divide-slate-100">
+           <div className="divide-y divide-slate-50">
              {asset.snapshots.length === 0 && <div className="p-8 text-center text-slate-400 text-sm">No price snapshots yet.</div>}
              {[...asset.snapshots]
                  .sort((a: Snapshot, b: Snapshot) => {
@@ -844,7 +815,7 @@ const DetailView: React.FC<{
              ))}
            </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-50">
             {asset.assetDeposits.length === 0 && <div className="p-8 text-center text-slate-400 text-sm">No deposits yet.</div>}
             {[...asset.assetDeposits]
                 .sort((a: Deposit, b: Deposit) => new Date(b.date).getTime() - new Date(a.date).getTime())

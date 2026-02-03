@@ -1,5 +1,4 @@
-
-import React, { ReactNode, useState } from 'react';
+import React, { Component, ReactNode, useState } from 'react';
 import { StoreProvider } from './store';
 import { Layout } from './components/Layout';
 import { HomeScreen } from './screens/Home';
@@ -17,11 +16,9 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary for stability
-// Fixed: Inherit from React.Component explicitly to resolve property access errors in TypeScript
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    // Fixed: Correctly initialized state which is now recognized via React.Component inheritance
     this.state = { hasError: false };
   }
 
@@ -34,7 +31,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   public render() {
-    // Fixed: Accessing state through 'this' which is now correctly typed as a React component
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center p-6 text-center bg-red-50">
@@ -46,7 +42,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    // Fixed: Accessing props through 'this' which is now correctly typed
     return this.props.children;
   }
 }

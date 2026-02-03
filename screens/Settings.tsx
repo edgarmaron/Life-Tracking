@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useStore, todayStr, generateId } from '../store';
 import { Card, Button, Input, Select } from '../components/UI';
-import { Download, Upload, AlertTriangle, Activity, ChevronUp, ChevronDown, Trash2, Edit2, Plus, X, Save, Check } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Activity, ChevronUp, ChevronDown, Trash2, Edit2, Plus, X, Check, Save } from 'lucide-react';
 import { HealthLog } from '../types';
 
 export const SettingsScreen: React.FC = () => {
@@ -143,16 +144,17 @@ export const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <div className="p-4 pb-24 space-y-6">
+    <div className="p-4 pb-24 space-y-6 animate-in fade-in duration-500">
       <Card title="Core Settings">
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <Input name="rate" type="number" step="0.0001" label="EUR to RON Rate" defaultValue={data.settings.eurRate} />
-          <p className="text-xs text-slate-500 -mt-2 mb-2">Last updated: {data.settings.eurRateDate}</p>
+          <p className="text-xs text-slate-500 -mt-2 mb-2 ml-1">Last updated: {data.settings.eurRateDate}</p>
           
           <Input name="emergencyTarget" type="number" label="Emergency Fund Target (RON)" defaultValue={data.settings.emergencyTarget} />
           
-          <hr className="my-4 border-slate-100" />
-          <div className="flex items-center gap-2 mb-2">
+          <div className="h-px bg-slate-100 my-6"></div>
+          
+          <div className="flex items-center gap-2 mb-4">
             <Activity className="text-blue-500" size={20} />
             <h3 className="font-semibold text-slate-700">Health Profile & Goals</h3>
           </div>
@@ -172,24 +174,24 @@ export const SettingsScreen: React.FC = () => {
             <Input name="calorieTarget" type="number" label="Calorie Target" defaultValue={data.settings.calorieTarget} />
           </div>
           
-          <Button type="submit" className="w-full mt-4">Save Changes</Button>
+          <Button type="submit" className="w-full mt-2" icon={Save}>Save Changes</Button>
         </form>
       </Card>
 
       <Card title="Expense Categories">
         <div className="space-y-2">
            {categories.map((cat, idx) => (
-             <div key={cat} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+             <div key={cat} className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100">
                {editingCategory?.oldName === cat ? (
                  <div className="flex-1 flex gap-2 mr-2">
                    <input 
                       autoFocus
-                      className="flex-1 p-1 text-sm border rounded"
+                      className="flex-1 p-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-500"
                       value={editingCategory.newName}
                       onChange={e => setEditingCategory({...editingCategory, newName: e.target.value})}
                    />
-                   <button onClick={saveRename} className="text-emerald-600 bg-emerald-100 p-1 rounded"><Check size={16}/></button>
-                   <button onClick={() => setEditingCategory(null)} className="text-slate-500 bg-slate-200 p-1 rounded"><X size={16}/></button>
+                   <button onClick={saveRename} className="text-emerald-600 bg-emerald-100 p-2 rounded-xl"><Check size={16}/></button>
+                   <button onClick={() => setEditingCategory(null)} className="text-slate-500 bg-slate-200 p-2 rounded-xl"><X size={16}/></button>
                  </div>
                ) : (
                  <>
@@ -198,21 +200,21 @@ export const SettingsScreen: React.FC = () => {
                        <button 
                           disabled={idx === 0}
                           onClick={() => moveCategory(idx, 'up')} 
-                          className={`text-slate-400 ${idx === 0 ? 'opacity-20' : 'hover:text-blue-600'}`}>
+                          className={`text-slate-400 p-1 ${idx === 0 ? 'opacity-20' : 'hover:text-blue-600'}`}>
                           <ChevronUp size={14} />
                        </button>
                        <button 
                           disabled={idx === categories.length - 1}
                           onClick={() => moveCategory(idx, 'down')} 
-                          className={`text-slate-400 ${idx === categories.length - 1 ? 'opacity-20' : 'hover:text-blue-600'}`}>
+                          className={`text-slate-400 p-1 ${idx === categories.length - 1 ? 'opacity-20' : 'hover:text-blue-600'}`}>
                           <ChevronDown size={14} />
                        </button>
                     </div>
-                    <span className="text-sm font-medium ml-2">{cat}</span>
+                    <span className="text-sm font-medium ml-2 text-slate-700">{cat}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => startRename(cat)} className="text-slate-400 hover:text-blue-600 p-1"><Edit2 size={16}/></button>
-                    <button onClick={() => deleteCategory(cat)} className="text-slate-400 hover:text-red-600 p-1"><Trash2 size={16}/></button>
+                    <button onClick={() => startRename(cat)} className="text-slate-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-xl transition-colors"><Edit2 size={16}/></button>
+                    <button onClick={() => deleteCategory(cat)} className="text-slate-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-colors"><Trash2 size={16}/></button>
                   </div>
                  </>
                )}
@@ -221,21 +223,21 @@ export const SettingsScreen: React.FC = () => {
            <div className="flex gap-2 mt-4">
              <input 
                 placeholder="New Category" 
-                className="flex-1 p-2 border rounded-lg text-sm"
+                className="flex-1 p-3 border border-slate-200 rounded-2xl text-sm outline-none focus:border-blue-500 transition-colors"
                 value={newCategoryName}
                 onChange={e => setNewCategoryName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addCategory()}
              />
-             <Button variant="secondary" onClick={addCategory} className="px-3 py-2"><Plus size={18}/></Button>
+             <Button variant="secondary" onClick={addCategory} className="px-4 py-2"><Plus size={20}/></Button>
            </div>
         </div>
       </Card>
 
       <Card title="Data Management">
         <div className="space-y-3">
-          <Button variant="secondary" onClick={handleExport} className="w-full bg-slate-800 hover:bg-slate-900" icon={Download}>Export Data (JSON)</Button>
-          <Button variant="ghost" onClick={handleImport} className="w-full border border-slate-300" icon={Upload}>Import Backup</Button>
-          <hr className="my-2"/>
+          <Button variant="secondary" onClick={handleExport} className="w-full" icon={Download}>Export Data (JSON)</Button>
+          <Button variant="ghost" onClick={handleImport} className="w-full border border-slate-200" icon={Upload}>Import Backup</Button>
+          <div className="h-px bg-slate-100 my-2"></div>
           <Button variant="danger" onClick={() => { if(confirm("Are you sure? This will wipe everything.")) resetData(); }} className="w-full" icon={AlertTriangle}>Reset All Data</Button>
         </div>
       </Card>

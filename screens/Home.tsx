@@ -2,18 +2,16 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../store';
 import { Card, Button, formatMoney, HeroNumber } from '../components/UI';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowRight } from 'lucide-react';
 
 export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab }) => {
   const { data } = useStore();
 
   const stats = useMemo(() => {
     // 1. Investments Logic
-    // Calculated as: For each asset, use Latest Price (Market Value) if available, otherwise Invested Amount.
     let investmentValueEUR = 0;
     
     data.assets.forEach(asset => {
-        // Find latest snapshot
         const assetSnapshots = data.snapshots
             .filter(s => s.assetId === asset.id)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -23,7 +21,6 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
         if (latestSnapshot) {
             investmentValueEUR += latestSnapshot.price;
         } else {
-            // Fallback to deposits
             const assetDeposits = data.deposits.filter(d => d.assetId === asset.id);
             const invested = assetDeposits.reduce((acc, d) => acc + d.amount, 0);
             investmentValueEUR += invested;
@@ -88,104 +85,90 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
   }, [data]);
 
   return (
-    <div className="p-4 space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 space-y-4 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex justify-between items-center px-1 pt-2">
+      <div className="flex justify-between items-center px-1 pt-2 pb-2">
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">LifeTrack</h1>
-        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span className="text-xs font-bold text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-full">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
       </div>
 
-      {/* Net Worth Card (Primary) */}
-      <Card variant="primary" className="relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+      {/* Net Worth Card (The Only Primary Dark Card) */}
+      <Card variant="primary">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="relative z-10">
           <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Net Worth</div>
-          <div className="text-4xl font-extrabold mb-6 tracking-tight text-white">{formatMoney(stats.netWorthRON)}</div>
+          <div className="text-4xl font-extrabold mb-8 tracking-tight text-white">{formatMoney(stats.netWorthRON)}</div>
           
           <div className="space-y-3">
               <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-                    <span className="text-slate-300 text-sm font-medium">Investments (Est.)</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span className="text-slate-300 text-sm font-medium">Investments</span>
                   </div>
-                  <span className="font-bold text-white">{formatMoney(stats.investmentValueRON)}</span>
+                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.investmentValueRON)}</span>
               </div>
               <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                     <span className="text-slate-300 text-sm font-medium">Savings</span>
                   </div>
-                  <span className="font-bold text-white">{formatMoney(stats.savingsRON)}</span>
+                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.savingsRON)}</span>
               </div>
               <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <span className="text-slate-300 text-sm font-medium">Emergency</span>
                   </div>
-                  <span className="font-bold text-white">{formatMoney(stats.emergencyRON)}</span>
+                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.emergencyRON)}</span>
               </div>
           </div>
-          <div className="mt-6 pt-4 border-t border-white/10 text-[10px] text-slate-400 font-medium">
-              1 EUR = {data.settings.eurRate} RON
-          </div>
         </div>
       </Card>
 
-      {/* Investments Summary (Primary) */}
-      <Card variant="primary" className="bg-slate-800" title="Investments Index" action={<Button variant="ghost" className="text-xs px-3 py-1.5 h-auto text-blue-200 hover:text-white hover:bg-white/10" onClick={() => setTab('investments')}>View</Button>}>
-        <div className="flex justify-between items-end">
-             <HeroNumber 
-               value={formatMoney(stats.investmentValueEUR, 'EUR')}
-               label="Portfolio Value"
-               subValue="Current market value"
-               subColor="text-slate-400"
-             />
-        </div>
+      {/* Investments Summary (Light) */}
+      <Card title="Investments Index" action={<Button variant="ghost" className="h-8 px-3 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setTab('investments')}>View <ArrowRight size={12} /></Button>}>
+         <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{formatMoney(stats.investmentValueEUR, 'EUR')}</span>
+            <span className="text-xs font-bold text-slate-400">Portfolio Value</span>
+         </div>
       </Card>
 
-      {/* Money Summary (Secondary) */}
+      {/* Money Summary (Light) */}
       <Card title="Monthly Money">
-        <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="p-3 bg-orange-50 rounded-xl border border-orange-100">
-                <div className="text-orange-900 font-extrabold text-lg">{formatMoney(stats.expensesRON)}</div>
-                <div className="text-[10px] font-bold text-orange-600 uppercase tracking-wide mt-1">Spent</div>
+        <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 bg-orange-50 rounded-2xl border border-orange-100 flex flex-col items-center text-center">
+                <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wide mb-1">Spent</span>
+                <span className="text-orange-900 font-bold text-sm">{formatMoney(stats.expensesRON)}</span>
             </div>
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <div className="text-emerald-900 font-extrabold text-lg">{formatMoney(stats.savingsRON)}</div>
-                <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mt-1">Saved</div>
+            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mb-1">Saved</span>
+                <span className="text-emerald-900 font-bold text-sm">{formatMoney(stats.savingsRON)}</span>
             </div>
-            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-                <div className="text-red-900 font-extrabold text-lg">{formatMoney(stats.emergencyRON)}</div>
-                <div className="text-[10px] font-bold text-red-600 uppercase tracking-wide mt-1">Emerg.</div>
+            <div className="p-3 bg-red-50 rounded-2xl border border-red-100 flex flex-col items-center text-center">
+                <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1">Emergency</span>
+                <span className="text-red-900 font-bold text-sm">{formatMoney(stats.emergencyRON)}</span>
             </div>
         </div>
       </Card>
 
-      {/* Current Weight + BMI Card (Secondary) */}
-      <Card title="Current Weight" action={stats.hasWeightLogs ? <Button variant="ghost" className="text-xs px-3 py-1.5 h-auto" onClick={() => setTab('health')}>History</Button> : null}>
+      {/* Current Weight + BMI Card (Light) */}
+      <Card title="Health" action={stats.hasWeightLogs ? <Button variant="ghost" className="h-8 px-3 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setTab('health')}>History <ArrowRight size={12} /></Button> : null}>
         {!stats.hasWeightLogs ? (
-            <div className="flex flex-col items-center justify-center py-4">
-                <div className="text-slate-400 text-sm font-medium mb-4">No weight logged yet</div>
-                <Button variant="primary" onClick={() => setTab('health')} icon={Plus} className="w-full">Log Weight</Button>
+            <div className="flex flex-col items-center justify-center py-2">
+                <Button variant="secondary" onClick={() => setTab('health')} icon={Plus} className="w-full">Log First Weight</Button>
             </div>
         ) : (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6 items-end">
                 <div>
-                    <HeroNumber 
-                      value={`${stats.latestWeight} kg`} 
-                      subValue={stats.weightDiff !== 0 ? `${stats.weightDiff > 0 ? '+' : ''}${stats.weightDiff.toFixed(1)} kg` : 'No change'}
-                      subColor={stats.weightDiff > 0 ? 'text-red-500' : 'text-emerald-500'}
-                    />
-                    {data.settings.targetWeight && (
-                        <div className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block mt-3">
-                            Goal: {data.settings.targetWeight} kg
-                        </div>
-                    )}
+                   <div className="text-2xl font-extrabold text-slate-900 mb-1">{stats.latestWeight} <span className="text-sm font-medium text-slate-400">kg</span></div>
+                   <div className={`text-xs font-bold flex items-center gap-1 ${stats.weightDiff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {stats.weightDiff > 0 ? '+' : ''}{stats.weightDiff.toFixed(1)} kg
+                      <span className="text-slate-400 font-medium">total change</span>
+                   </div>
                 </div>
-                <div className="text-right flex flex-col items-end">
-                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wide mb-1">BMI</span>
-                    <span className="text-3xl font-extrabold text-blue-600">{stats.bmi}</span>
-                    <span className="text-xs font-bold text-blue-400 mt-1 uppercase tracking-wide bg-blue-50 px-2 py-0.5 rounded-full">{stats.bmiCategory}</span>
+                <div className="flex flex-col items-end">
+                    <span className="text-2xl font-extrabold text-blue-600">{stats.bmi}</span>
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-2 py-1 rounded-full mt-1">{stats.bmiCategory}</span>
                 </div>
             </div>
         )}

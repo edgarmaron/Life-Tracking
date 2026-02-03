@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useStore, generateId, todayStr } from '../store';
 import { Card, Button, Input, Select, EmptyState } from '../components/UI';
@@ -52,7 +53,7 @@ export const HealthScreen: React.FC = () => {
         <form onSubmit={handleLog} className="space-y-6">
           <Input name="value" type="number" step={logType === 'Weight' ? '0.1' : '1'} label="Value" required autoFocus className="text-lg font-mono" />
           <Input name="date" type="date" label="Date" defaultValue={todayStr()} required />
-          <div className="flex gap-4"><Button variant="ghost" onClick={() => setLogType(null)} className="flex-1">Cancel</Button><Button type="submit" className="flex-1 shadow-lg">Save</Button></div>
+          <div className="flex gap-4"><Button variant="ghost" onClick={() => setLogType(null)} className="flex-1 bg-slate-50">Cancel</Button><Button type="submit" className="flex-1 shadow-lg">Save</Button></div>
         </form>
       </div>
     )
@@ -60,7 +61,7 @@ export const HealthScreen: React.FC = () => {
 
   return (
     <div className="p-4 space-y-6 pb-24 animate-in fade-in duration-500">
-      <Card className="bg-white border-slate-200">
+      <Card>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Current Weight</div>
@@ -71,7 +72,7 @@ export const HealthScreen: React.FC = () => {
               </div>
             )}
             {data.settings.targetWeight && (
-              <div className="text-xs font-bold text-blue-500 mt-3 bg-blue-50 px-2 py-1 rounded inline-block">Goal: {data.settings.targetWeight} kg 
+              <div className="text-xs font-bold text-blue-500 mt-3 bg-blue-50 px-2 py-1 rounded-md inline-block">Goal: {data.settings.targetWeight} kg 
                 {data.settings.targetDate && ` by ${new Date(data.settings.targetDate).toLocaleDateString()}`}
               </div>
             )}
@@ -84,17 +85,17 @@ export const HealthScreen: React.FC = () => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <button onClick={() => setLogType('Weight')} className="flex flex-col items-center justify-center h-24 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:bg-slate-50 transition-all active:scale-95">
-          <div className="bg-emerald-100 p-2 rounded-full mb-2"><Scale size={20} className="text-emerald-600" /></div>
+          <div className="bg-emerald-50 p-2.5 rounded-full mb-2"><Scale size={20} className="text-emerald-600" /></div>
           <span className="text-xs font-bold text-slate-600">Weight</span>
         </button>
         <button onClick={() => setLogType('Steps')} className="flex flex-col items-center justify-center h-24 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:bg-slate-50 transition-all active:scale-95">
-          <div className="bg-blue-100 p-2 rounded-full mb-2"><Footprints size={20} className="text-blue-600" /></div>
+          <div className="bg-blue-50 p-2.5 rounded-full mb-2"><Footprints size={20} className="text-blue-600" /></div>
           <span className="text-xs font-bold text-slate-600">Steps</span>
         </button>
         <button onClick={() => setLogType('Calories')} className="flex flex-col items-center justify-center h-24 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:bg-slate-50 transition-all active:scale-95">
-          <div className="bg-orange-100 p-2 rounded-full mb-2"><Flame size={20} className="text-orange-600" /></div>
+          <div className="bg-orange-50 p-2.5 rounded-full mb-2"><Flame size={20} className="text-orange-600" /></div>
           <span className="text-xs font-bold text-slate-600">Calories</span>
         </button>
       </div>
@@ -129,7 +130,7 @@ const Section: React.FC<{ title: string; logs: HealthLog[]; unit: string; color:
   if (logs.length === 0) return (
      <div className="space-y-3">
        <div className="flex justify-between">
-        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">{title}</h3>
+        <h3 className="font-bold text-slate-500 text-xs uppercase tracking-wide px-1">{title}</h3>
        </div>
        <EmptyState message="No logs yet" />
      </div>
@@ -140,7 +141,7 @@ const Section: React.FC<{ title: string; logs: HealthLog[]; unit: string; color:
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center px-1">
-        <h3 className="font-bold text-slate-600 text-xs uppercase tracking-wide">{title}</h3>
+        <h3 className="font-bold text-slate-500 text-xs uppercase tracking-wide">{title}</h3>
         {target && <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Goal: {target} {unit}</span>}
       </div>
       <Card className="h-40 p-4 relative">
@@ -158,12 +159,12 @@ const Section: React.FC<{ title: string; logs: HealthLog[]; unit: string; color:
       </Card>
       <div className="space-y-2">
         {logs.slice(0, 3).map(l => (
-          <div key={l.id} className="flex justify-between items-center text-sm bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+          <div key={l.id} className="flex justify-between items-center text-sm bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
              <span className="text-slate-500 font-medium">{new Date(l.date).toLocaleDateString()}</span>
              <span className="font-bold text-slate-900">
                {l.value} {unit} 
                {target && (
-                 <span className={`text-[10px] ml-2 font-bold px-1.5 py-0.5 rounded ${l.value >= target ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+                 <span className={`text-[10px] ml-2 font-bold px-2 py-0.5 rounded-full ${l.value >= target ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
                    {Math.round((l.value / target) * 100)}%
                  </span>
                )}
