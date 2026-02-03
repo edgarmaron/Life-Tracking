@@ -53,7 +53,16 @@ export const InvestmentsScreen: React.FC = () => {
       const investedAmount = assetDeposits.reduce((acc, d) => acc + d.amount, 0);
 
       // 3. Current Valuation
-      const currentValue = hasPrice ? latestPrice : investedAmount;
+      let currentValue = investedAmount;
+      if (hasPrice) {
+          const lastSnapshot = snapshots[snapshots.length - 1];
+          // Add deposits/withdrawals that happened AFTER the last snapshot date
+          // Note: Deposits on the same day are assumed to be included in the snapshot value
+          const subsequentFlow = assetDeposits
+            .filter(d => d.date > lastSnapshot.date)
+            .reduce((acc, d) => acc + d.amount, 0);
+          currentValue = latestPrice + subsequentFlow;
+      }
 
       // 4. Profit/Loss Percentage
       let priceChangePercent = 0;
@@ -737,7 +746,7 @@ const DetailView: React.FC<{
                 <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Market Value</div>
                 {asset.hasPrice ? (
                     <>
-                    <div className="font-extrabold text-2xl text-slate-900">{formatMoney(asset.latestPrice, 'EUR')}</div>
+                    <div className="font-extrabold text-2xl text-slate-900">{formatMoney(asset.currentValue, 'EUR')}</div>
                     <div className={`text-xs font-bold ${asset.priceChangePercent >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {asset.priceChangePercent >= 0 ? '+' : ''}{asset.priceChangePercent.toFixed(1)}%
                     </div>
@@ -761,7 +770,7 @@ const DetailView: React.FC<{
         <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <form onSubmit={handleSavePrice} className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
              <h3 className="text-lg font-bold text-slate-900 mb-4">Update Market Price</h3>
-             <Input name="price" type="number" step="0.01" label="Total Value (EUR)" defaultValue={asset.latestPrice || ''} autoFocus required className="text-lg font-mono" />
+             <Input name="price" type="number" step="0.01" label="Total Value (EUR)" defaultValue={asset.currentValue || ''} autoFocus required className="text-lg font-mono" />
              <Input name="date" type="date" label="Date" defaultValue={todayStr()} required />
              <div className="flex gap-3 pt-2">
                <Button variant="ghost" onClick={() => setIsUpdatePriceOpen(false)} className="flex-1 bg-slate-50">Cancel</Button>

@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { LucideIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { LucideIcon, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Design System Constants
 // Spacing: 16px padding (p-4), 16px radius (rounded-2xl)
@@ -12,9 +12,9 @@ export const Card: React.FC<{
   title?: string; 
   action?: React.ReactNode;
   variant?: 'primary' | 'secondary';
-}> = ({ children, className = '', title, action, variant = 'secondary' }) => {
-  // Primary = Dark Hero (Only for Home Net Worth)
-  // Secondary = Standard Light Card (Everywhere else)
+  collapsible?: boolean;
+}> = ({ children, className = '', title, action, variant = 'secondary', collapsible = false }) => {
+  const [isOpen, setIsOpen] = useState(!collapsible);
   
   const baseStyles = "rounded-2xl p-4 transition-all duration-200 relative overflow-hidden";
   const variants = {
@@ -24,17 +24,25 @@ export const Card: React.FC<{
 
   return (
     <div className={`${baseStyles} ${variants[variant]} ${className}`}>
-      {(title || action) && (
-        <div className="flex justify-between items-center mb-4">
-          {title && (
-            <h3 className={`text-xs font-bold uppercase tracking-wide ${variant === 'primary' ? 'text-slate-400' : 'text-slate-500'}`}>
-              {title}
-            </h3>
-          )}
-          {action && <div>{action}</div>}
+      {(title || action || collapsible) && (
+        <div 
+          className={`flex justify-between items-center ${isOpen ? 'mb-4' : ''} ${collapsible ? 'cursor-pointer select-none' : ''}`}
+          onClick={() => collapsible && setIsOpen(!isOpen)}
+        >
+          <div className="flex items-center gap-2">
+            {title && (
+              <h3 className={`text-xs font-bold uppercase tracking-wide ${variant === 'primary' ? 'text-slate-400' : 'text-slate-500'}`}>
+                {title}
+              </h3>
+            )}
+            {collapsible && (
+              isOpen ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />
+            )}
+          </div>
+          {action && <div onClick={e => e.stopPropagation()}>{action}</div>}
         </div>
       )}
-      {children}
+      {isOpen && <div className="animate-in slide-in-from-top-2 duration-200">{children}</div>}
     </div>
   );
 };
@@ -101,6 +109,29 @@ export const EmptyState: React.FC<{ message: string; action?: React.ReactNode }>
     {action}
   </div>
 );
+
+export const ProgressBar: React.FC<{ value: number; max: number; colorClass?: string }> = ({ value, max, colorClass = "bg-blue-600" }) => {
+  const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full transition-all duration-1000 ${colorClass}`} style={{ width: `${percentage}%` }} />
+    </div>
+  );
+};
+
+export const StatusBadge: React.FC<{ status: 'good' | 'neutral' | 'bad'; label: string }> = ({ status, label }) => {
+  const colors = {
+    good: "bg-emerald-100 text-emerald-700",
+    neutral: "bg-amber-100 text-amber-700",
+    bad: "bg-red-100 text-red-700"
+  };
+  return (
+    <div className="flex flex-col items-center justify-center gap-1">
+      <div className={`w-3 h-3 rounded-full ${colors[status].split(' ')[0].replace('100', '500')}`} />
+      <span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>
+    </div>
+  );
+};
 
 export const formatMoney = (amount: number, currency: 'RON' | 'EUR' = 'RON', decimals: number = 2) => {
   return new Intl.NumberFormat('ro-RO', {

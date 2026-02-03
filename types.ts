@@ -1,5 +1,4 @@
 
-
 export type AssetType = 'ETF' | 'Stock' | 'Crypto';
 export type TradeType = 'Buy' | 'Sell';
 
@@ -48,6 +47,16 @@ export interface Expense {
   notes?: string;
 }
 
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  billingCycle: 'Monthly' | 'Yearly';
+  nextRenewal: string;
+  active: boolean;
+  category?: string;
+}
+
 export interface SavingsBucket {
   id: string;
   name: string;
@@ -86,7 +95,9 @@ export interface Settings {
   eurRate: number;
   eurRateDate: string;
   expenseCategories: string[];
+  categoryBudgets: Record<string, number>; 
   emergencyTarget: number;
+  lastBackupDate?: string;
   // Health Goals
   targetWeight?: number;
   targetDate?: string;
@@ -100,6 +111,7 @@ export interface AppData {
   deposits: Deposit[];
   snapshots: Snapshot[];
   expenses: Expense[];
+  subscriptions: Subscription[];
   savingsBuckets: SavingsBucket[];
   savingsTransactions: SavingsTransaction[];
   emergencyTransactions: EmergencyTransaction[];
@@ -142,6 +154,7 @@ export const INITIAL_DATA: AppData = {
   deposits: [],
   snapshots: [],
   expenses: [],
+  subscriptions: [],
   savingsBuckets: [],
   savingsTransactions: [],
   emergencyTransactions: [],
@@ -151,6 +164,7 @@ export const INITIAL_DATA: AppData = {
     eurRate: 4.97, // Example default
     eurRateDate: new Date().toISOString(),
     expenseCategories: DEFAULT_CATEGORIES,
+    categoryBudgets: {},
     emergencyTarget: 0,
     stepTarget: 10000,
     calorieTarget: 2000,

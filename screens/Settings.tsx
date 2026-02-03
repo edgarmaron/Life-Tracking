@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { useStore, todayStr, generateId } from '../store';
-import { Card, Button, Input, Select } from '../components/UI';
-import { Download, Upload, AlertTriangle, Activity, ChevronUp, ChevronDown, Trash2, Edit2, Plus, X, Check, Save } from 'lucide-react';
+import { Card, Button, Input, Select, formatMoney } from '../components/UI';
+import { Download, Upload, AlertTriangle, Activity, ChevronUp, ChevronDown, Trash2, Edit2, Plus, X, Check, Save, Wallet, FileSpreadsheet } from 'lucide-react';
 import { HealthLog } from '../types';
 
 export const SettingsScreen: React.FC = () => {
@@ -32,6 +32,13 @@ export const SettingsScreen: React.FC = () => {
        };
        newHealthLogs = [newLog, ...newHealthLogs];
     }
+    
+    // Extract Budgets
+    const newBudgets: Record<string, number> = {};
+    data.settings.expenseCategories.forEach(cat => {
+        const val = parseFloat(fd.get(`budget_${cat}`) as string);
+        if (val > 0) newBudgets[cat] = val;
+    });
 
     updateData({
       healthLogs: newHealthLogs,
@@ -41,6 +48,7 @@ export const SettingsScreen: React.FC = () => {
         eurRate: parseFloat(fd.get('rate') as string),
         eurRateDate: todayStr(),
         emergencyTarget: parseFloat(fd.get('emergencyTarget') as string),
+        categoryBudgets: newBudgets,
         // New Health Goals
         targetWeight: parseFloat(fd.get('targetWeight') as string) || undefined,
         targetDate: fd.get('targetDate') as string || undefined,
@@ -109,10 +117,17 @@ export const SettingsScreen: React.FC = () => {
     
     // Update existing expenses
     const newExpenses = data.expenses.map(e => e.category === oldName ? { ...e, category: trimmedNew } : e);
+    
+    // Update budgets keys
+    const newBudgets = { ...data.settings.categoryBudgets };
+    if (newBudgets[oldName]) {
+        newBudgets[trimmedNew] = newBudgets[oldName];
+        delete newBudgets[oldName];
+    }
 
     updateData({
       expenses: newExpenses,
-      settings: { ...data.settings, expenseCategories: newCats }
+      settings: { ...data.settings, expenseCategories: newCats, categoryBudgets: newBudgets }
     });
     setEditingCategory(null);
   };
@@ -124,6 +139,7 @@ export const SettingsScreen: React.FC = () => {
     a.href = url;
     a.download = `lifetrack_backup_${todayStr()}.json`;
     a.click();
+    updateData({ settings: { ...data.settings, lastBackupDate: todayStr() } });
   };
 
   const handleImport = () => {
@@ -141,6 +157,10 @@ export const SettingsScreen: React.FC = () => {
       reader.readAsText(file);
     };
     input.click();
+  };
+
+  const handleCSVImport = (type: 'Expenses' | 'Investments') => {
+      alert(`Importing ${type} from CSV is coming soon. Format: Date, Amount, Note...`);
   };
 
   return (
@@ -173,8 +193,30 @@ export const SettingsScreen: React.FC = () => {
             <Input name="stepTarget" type="number" label="Steps Target" defaultValue={data.settings.stepTarget} />
             <Input name="calorieTarget" type="number" label="Calorie Target" defaultValue={data.settings.calorieTarget} />
           </div>
+
+          <div className="h-px bg-slate-100 my-6"></div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className="text-emerald-500" size={20} />
+            <h3 className="font-semibold text-slate-700">Category Budgets (Monthly)</h3>
+          </div>
+
+          <div className="space-y-3">
+             {categories.map(cat => (
+                 <div key={cat} className="flex items-center gap-3">
+                     <label className="text-xs font-bold text-slate-500 w-1/3 truncate">{cat}</label>
+                     <input 
+                       name={`budget_${cat}`}
+                       type="number" 
+                       placeholder="No Limit"
+                       defaultValue={data.settings.categoryBudgets[cat] || ''}
+                       className="flex-1 h-10 px-3 rounded-xl border border-slate-200 text-sm focus:border-blue-500 outline-none"
+                     />
+                 </div>
+             ))}
+          </div>
           
-          <Button type="submit" className="w-full mt-2" icon={Save}>Save Changes</Button>
+          <Button type="submit" className="w-full mt-6" icon={Save}>Save Changes</Button>
         </form>
       </Card>
 
@@ -235,8 +277,22 @@ export const SettingsScreen: React.FC = () => {
 
       <Card title="Data Management">
         <div className="space-y-3">
-          <Button variant="secondary" onClick={handleExport} className="w-full" icon={Download}>Export Data (JSON)</Button>
-          <Button variant="ghost" onClick={handleImport} className="w-full border border-slate-200" icon={Upload}>Import Backup</Button>
+          {data.settings.lastBackupDate && (
+              <div className="text-center text-xs text-slate-500 mb-2">
+                  Last backup: <span className="font-bold text-slate-700">{data.settings.lastBackupDate}</span>
+              </div>
+          )}
+          
+          <div className="grid grid-cols-2 gap-3">
+              <Button variant="secondary" onClick={handleExport} icon={Download}>Export JSON</Button>
+              <Button variant="ghost" onClick={handleImport} className="border border-slate-200" icon={Upload}>Import JSON</Button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={() => handleCSVImport('Expenses')} className="text-xs border border-slate-200" icon={FileSpreadsheet}>Import Expenses CSV</Button>
+              <Button variant="ghost" onClick={() => handleCSVImport('Investments')} className="text-xs border border-slate-200" icon={FileSpreadsheet}>Import Inv. CSV</Button>
+          </div>
+
           <div className="h-px bg-slate-100 my-2"></div>
           <Button variant="danger" onClick={() => { if(confirm("Are you sure? This will wipe everything.")) resetData(); }} className="w-full" icon={AlertTriangle}>Reset All Data</Button>
         </div>

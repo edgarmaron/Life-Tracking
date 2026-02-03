@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore, generateId, todayStr } from '../store';
-import { Card, Button, Input, Select, EmptyState, formatMoney, HeroNumber } from '../components/UI';
-import { Plus, Trash2, Edit2, ArrowLeft, X, Search, ChevronDown, PieChart as PieChartIcon, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
-import { Expense, SavingsBucket, SavingsTransaction, EmergencyTransaction } from '../types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Card, Button, Input, Select, EmptyState, formatMoney, HeroNumber, ProgressBar } from '../components/UI';
+import { Plus, Trash2, Edit2, X, Search, ChevronDown, PieChart as PieChartIcon, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, RefreshCcw, BarChart3, ArrowLeft } from 'lucide-react';
+import { Expense, SavingsBucket, SavingsTransaction, EmergencyTransaction, Subscription } from '../types';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis } from 'recharts';
 
 const matchesMonth = (dateStr: string, targetYear: number, targetMonth: number) => {
   if (!dateStr) return false;
@@ -15,20 +15,28 @@ const matchesMonth = (dateStr: string, targetYear: number, targetMonth: number) 
 };
 
 export const MoneyScreen: React.FC = () => {
-  const [tab, setTab] = useState<'expenses' | 'savings' | 'emergency'>('expenses');
+  const [tab, setTab] = useState<'expenses' | 'subscriptions' | 'savings' | 'emergency'>('expenses');
+  const { quickAction, triggerAction } = useStore();
+
+  useEffect(() => {
+      if (quickAction === 'addExpense') {
+          setTab('expenses');
+      }
+  }, [quickAction]);
 
   return (
     <div className="p-4 pb-24 animate-in fade-in duration-500">
-      <div className="flex p-1 bg-slate-100/80 backdrop-blur rounded-2xl mb-6">
+      <div className="flex p-1 bg-slate-100/80 backdrop-blur rounded-2xl mb-6 overflow-x-auto no-scrollbar">
         {[
           { id: 'expenses', label: 'Expenses' },
+          { id: 'subscriptions', label: 'Subs' },
           { id: 'savings', label: 'Savings' },
           { id: 'emergency', label: 'Emergency' }
         ].map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id as any)}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
+            className={`flex-1 min-w-[80px] py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
               tab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -39,6 +47,7 @@ export const MoneyScreen: React.FC = () => {
 
       <div className="animate-in slide-in-from-bottom-2 duration-300">
         {tab === 'expenses' && <ExpensesView />}
+        {tab === 'subscriptions' && <SubscriptionsView />}
         {tab === 'savings' && <SavingsView />}
         {tab === 'emergency' && <EmergencyView />}
       </div>
@@ -46,7 +55,75 @@ export const MoneyScreen: React.FC = () => {
   );
 };
 
-// ... CategoryPicker Component remains mostly the same, ensuring consistent styles ...
+const SubscriptionsView: React.FC = () => {
+    const { data, updateData } = useStore();
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    
+    const monthlyTotal = data.subscriptions.filter(s => s.active).reduce((acc, s) => acc + (s.billingCycle === 'Monthly' ? s.amount : s.amount/12), 0);
+    
+    const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault(); const fd = new FormData(e.currentTarget);
+        const newSub: Subscription = {
+            id: generateId(),
+            name: fd.get('name') as string,
+            amount: parseFloat(fd.get('amount') as string),
+            billingCycle: fd.get('billingCycle') as 'Monthly' | 'Yearly',
+            nextRenewal: fd.get('nextRenewal') as string,
+            active: true
+        };
+        updateData({ subscriptions: [...data.subscriptions, newSub] });
+        setIsFormOpen(false);
+    };
+
+    const toggleActive = (id: string) => {
+        updateData({ subscriptions: data.subscriptions.map(s => s.id === id ? { ...s, active: !s.active } : s)});
+    };
+    
+    const deleteSub = (id: string) => {
+        if(confirm("Remove this subscription?")) updateData({ subscriptions: data.subscriptions.filter(s => s.id !== id)});
+    }
+
+    if(isFormOpen) {
+        return (
+             <form onSubmit={handleAdd} className="space-y-4 animate-in slide-in-from-right duration-200">
+                 <h2 className="font-bold text-xl text-slate-900">Add Subscription</h2>
+                 <Input name="name" label="Service Name" required autoFocus />
+                 <Input name="amount" type="number" step="0.01" label="Amount" required />
+                 <Select name="billingCycle" label="Cycle"><option value="Monthly">Monthly</option><option value="Yearly">Yearly</option></Select>
+                 <Input name="nextRenewal" type="date" label="Next Renewal" required />
+                 <div className="flex gap-3"><Button variant="ghost" onClick={() => setIsFormOpen(false)} className="flex-1 bg-slate-50">Cancel</Button><Button type="submit" className="flex-1">Save</Button></div>
+             </form>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Monthly Recurring</div>
+                <HeroNumber value={formatMoney(monthlyTotal)} subValue={`${data.subscriptions.length} Active Services`} />
+            </Card>
+
+            <Button onClick={() => setIsFormOpen(true)} icon={Plus} className="w-full">Add Subscription</Button>
+
+            <div className="space-y-3">
+                {data.subscriptions.map(sub => (
+                    <div key={sub.id} className={`p-4 rounded-2xl border flex justify-between items-center ${sub.active ? 'bg-white border-slate-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div>
+                            <div className="font-bold text-slate-900">{sub.name}</div>
+                            <div className="text-xs text-slate-400 font-medium">{formatMoney(sub.amount)} / {sub.billingCycle} • Renew: {new Date(sub.nextRenewal).toLocaleDateString()}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                             <button onClick={() => toggleActive(sub.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full ${sub.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-500'}`}>{sub.active ? 'Active' : 'Paused'}</button>
+                             <button onClick={() => deleteSub(sub.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// ... CategoryPicker Component ...
 const CategoryPicker: React.FC<{
   categories: string[];
   expenses: Expense[];
@@ -146,12 +223,22 @@ const CategoryPicker: React.FC<{
 };
 
 const ExpensesView: React.FC = () => {
-  const { data, updateData } = useStore();
+  const { data, updateData, quickAction, triggerAction } = useStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
   const [viewDate, setViewDate] = useState(new Date());
+  const [showSeasonal, setShowSeasonal] = useState(false);
+
+  useEffect(() => {
+      if (quickAction === 'addExpense') {
+          setEditingExpense(null);
+          setSelectedCategory(data.settings.expenseCategories[0] || '');
+          setIsFormOpen(true);
+          triggerAction(null); // Clear action
+      }
+  }, [quickAction, data.settings.expenseCategories, triggerAction]);
 
   const currentMonthExpenses = useMemo(() => {
      const targetYear = viewDate.getFullYear();
@@ -166,7 +253,7 @@ const ExpensesView: React.FC = () => {
     currentMonthExpenses.forEach(ex => {
       stats[ex.category] = (stats[ex.category] || 0) + ex.amount;
     });
-    const sorted = Object.entries(stats).sort(([, a], [, b]) => b - a);
+    const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]);
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
     
     if (sorted.length <= 5) {
@@ -178,6 +265,32 @@ const ExpensesView: React.FC = () => {
     if (other > 0) result.push({ name: 'Other', value: other, color: '#94a3b8' });
     return result;
   }, [currentMonthExpenses]);
+
+  // Seasonal Data for 12 months
+  const seasonalData = useMemo(() => {
+      const result = [];
+      const today = new Date();
+      for(let i=11; i>=0; i--) {
+          const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+          const total = data.expenses.filter(e => matchesMonth(e.date, d.getFullYear(), d.getMonth())).reduce((acc: number,e) => acc + Number(e.amount), 0);
+          result.push({ name: d.toLocaleDateString('en-US',{month:'short'}), value: total });
+      }
+      return result;
+  }, [data.expenses]);
+
+  // Calculate Budgets status
+  const budgetStatus = useMemo(() => {
+      const spent: Record<string, number> = {};
+      currentMonthExpenses.forEach(ex => {
+          spent[ex.category] = (spent[ex.category] || 0) + ex.amount;
+      });
+      return Object.entries(data.settings.categoryBudgets).map(([cat, limit]) => ({
+          cat,
+          limit,
+          spent: spent[cat] || 0,
+          pct: Math.min(100, ((spent[cat] || 0) / limit) * 100)
+      })).sort((a,b) => b.pct - a.pct);
+  }, [currentMonthExpenses, data.settings.categoryBudgets]);
 
   const comparison = useMemo(() => {
     const targetYear = viewDate.getFullYear();
@@ -324,23 +437,38 @@ const ExpensesView: React.FC = () => {
              <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Spent in {viewDate.toLocaleDateString('en-US', { month: 'short' })}</div>
              <HeroNumber value={formatMoney(thisMonthTotal)} />
            </div>
-           <div className="p-3 bg-slate-100 rounded-2xl text-slate-400"><PieChartIcon size={32} /></div>
+           <div onClick={() => setShowSeasonal(!showSeasonal)} className={`p-3 rounded-2xl cursor-pointer transition-colors ${showSeasonal ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+              <BarChart3 size={24} />
+           </div>
         </div>
 
-        {pieData.length > 0 && (
-          <div className="h-48 w-full mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value">
-                  {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                </Pie>
-                <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+        {showSeasonal ? (
+            <div className="h-48 w-full animate-in fade-in duration-300">
+               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2 text-center">Seasonal Patterns (Last 12 Months)</div>
+               <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={seasonalData}>
+                       <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
+                       <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius:'12px', border:'none'}} />
+                       <Bar dataKey="value" fill="#3b82f6" radius={[4,4,0,0]} />
+                   </BarChart>
+               </ResponsiveContainer>
+            </div>
+        ) : (
+            pieData.length > 0 && (
+            <div className="h-48 w-full mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value">
+                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                </PieChart>
+                </ResponsiveContainer>
+            </div>
+            )
         )}
         
-        {pieData.length > 0 && (
+        {!showSeasonal && pieData.length > 0 && (
           <div className="space-y-3 border-t border-slate-50 pt-4">
              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Top Breakdown</div>
              {pieData.map((cat) => (
@@ -355,6 +483,22 @@ const ExpensesView: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Budget Status */}
+      {budgetStatus.length > 0 && (
+         <div className="space-y-3">
+             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide px-1">Budget Limits</div>
+             {budgetStatus.map(b => (
+                 <div key={b.cat} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                     <div className="flex justify-between mb-1">
+                         <span className="text-xs font-bold text-slate-700">{b.cat}</span>
+                         <span className={`text-xs font-bold ${b.pct >= 100 ? 'text-red-500' : 'text-slate-500'}`}>{formatMoney(b.spent)} / {formatMoney(b.limit)}</span>
+                     </div>
+                     <ProgressBar value={b.pct} max={100} colorClass={b.pct >= 100 ? 'bg-red-500' : (b.pct > 80 ? 'bg-orange-400' : 'bg-blue-500')} />
+                 </div>
+             ))}
+         </div>
+      )}
 
       <Card title="Monthly Comparison">
          <div className="flex justify-between items-center mb-6">
@@ -431,8 +575,8 @@ const ExpensesView: React.FC = () => {
   );
 };
 
-// ... SavingsView and EmergencyView remain similar but ensuring Card/Button usages are standard ...
-// For brevity, assuming they use the same standard components.
+// ... SavingsView and EmergencyView ...
+// (Kept as is, assuming standard components used)
 const SavingsView: React.FC = () => {
     const { data, updateData } = useStore();
     const [editingBucket, setEditingBucket] = useState(false);

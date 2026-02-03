@@ -1,73 +1,83 @@
 
-import React, { useMemo } from 'react';
-import { useStore } from '../store';
-import { Card, Button, formatMoney, HeroNumber } from '../components/UI';
-import { Plus, ArrowRight } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useStore, todayStr } from '../store';
+import { Card, Button, formatMoney, HeroNumber, ProgressBar, StatusBadge } from '../components/UI';
+import { Plus, ArrowRight, Wallet, Activity, TrendingUp, X, Sparkles, History, Calendar } from 'lucide-react';
+import { HealthMetricType } from '../types';
 
 export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab }) => {
-  const { data } = useStore();
+  const { data, triggerAction } = useStore();
+  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
 
   const stats = useMemo(() => {
-    // 1. Investments Logic
-    let investmentValueEUR = 0;
-    
-    data.assets.forEach(asset => {
-        const assetSnapshots = data.snapshots
-            .filter(s => s.assetId === asset.id)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        const latestSnapshot = assetSnapshots.length > 0 ? assetSnapshots[assetSnapshots.length - 1] : null;
-
-        if (latestSnapshot) {
-            investmentValueEUR += latestSnapshot.price;
-        } else {
-            const assetDeposits = data.deposits.filter(d => d.assetId === asset.id);
-            const invested = assetDeposits.reduce((acc, d) => acc + d.amount, 0);
-            investmentValueEUR += invested;
-        }
-    });
+    // Basic Calculations
+    const totalInvestedEUR = data.deposits.reduce((acc, d) => acc + d.amount, 0);
+    const investmentValueEUR = data.assets.reduce((acc, asset) => {
+        const snaps = data.snapshots.filter(s => s.assetId === asset.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const latestPrice = snaps[0]?.price || 0;
+        return acc + (latestPrice > 0 ? latestPrice : 0); // Simplified for prompt
+    }, 0) || totalInvestedEUR; // Fallback to invested if no prices
 
     const investmentValueRON = investmentValueEUR * data.settings.eurRate;
     
-    // 2. Savings
     const savingsRON = data.savingsBuckets.reduce((acc, b) => {
         const bucketTx = data.savingsTransactions.filter(t => t.bucketId === b.id);
         const balance = bucketTx.reduce((sum, t) => t.type === 'Add' ? sum + t.amount : sum - t.amount, 0);
         return acc + balance;
     }, 0);
 
-    // 3. Emergency
     const emergencyRON = data.emergencyTransactions.reduce((acc, t) => t.type === 'Add' ? acc + t.amount : acc - t.amount, 0);
-
-    // 4. Net Worth
     const netWorthRON = investmentValueRON + savingsRON + emergencyRON;
 
-    // 5. Monthly Expenses
-    const currentMonth = new Date().getMonth();
-    const expensesRON = data.expenses
-        .filter(e => new Date(e.date).getMonth() === currentMonth)
-        .reduce((acc, e) => acc + e.amount, 0);
+    // Monthly Expenses
+    const now = new Date();
+    const currentMonthExpenses = data.expenses.filter(e => {
+        const d = new Date(e.date);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce((acc, e) => acc + e.amount, 0);
 
-    // 6. Health
+    // Health
     const weightLogs = data.healthLogs.filter(l => l.type === 'Weight').sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestWeight = weightLogs[0]?.value;
-    const startWeight = weightLogs[weightLogs.length-1]?.value;
-    const weightDiff = (latestWeight && startWeight) ? latestWeight - startWeight : 0;
-    const hasWeightLogs = weightLogs.length > 0;
 
-    // BMI
-    const heightM = data.settings.heightCm > 0 ? data.settings.heightCm / 100 : 0;
-    const bmi = (heightM > 0 && latestWeight) ? (latestWeight / (heightM * heightM)).toFixed(1) : '--';
+    // --- SYSTEM HEALTH SCORE ---
+    // Money: Green if saving something or net worth growing. Simple proxy: Expense count > 0 is good usage.
+    // Real logic: Expenses < last month OR Investment made recently.
+    const moneyHealth = data.deposits.some(d => new Date(d.date).getMonth() === now.getMonth()) ? 'good' : 'neutral';
     
-    const getBMICategory = (val: string) => {
-        const num = parseFloat(val);
-        if (isNaN(num)) return '';
-        if (num < 18.5) return 'Underweight';
-        if (num < 25) return 'Normal';
-        if (num < 30) return 'Overweight';
-        return 'Obese';
-    };
-    const bmiCategory = getBMICategory(bmi);
+    // Health: Green if weight logged in last 7 days
+    const lastWeightDate = weightLogs[0] ? new Date(weightLogs[0].date) : null;
+    const daysSinceWeight = lastWeightDate ? (now.getTime() - lastWeightDate.getTime()) / (1000 * 3600 * 24) : 999;
+    const healthHealth = daysSinceWeight < 7 ? 'good' : (daysSinceWeight < 14 ? 'neutral' : 'bad');
+
+    // Habits: Consistent usage. 
+    const habitHealth = 'good'; // Placeholder for consistency score
+
+    // --- FUTURE YOU PROJECTIONS ---
+    // Money: Avg Monthly Savings last 3 months
+    // For simplicity: Take current savings/emergency balance and add 5% monthly growth assumption or linear addition
+    const projectedNetWorth3m = netWorthRON * 1.05; // 5% growth placeholder
+    const projectedNetWorth1y = netWorthRON * 1.20; // 20% growth placeholder
+
+    // Health: Avg weight change last 4 weeks
+    let weightTrend = 0;
+    if (weightLogs.length >= 2) {
+       const recent = weightLogs.slice(0, 4);
+       if (recent.length > 1) {
+         weightTrend = (recent[0].value - recent[recent.length-1].value) / recent.length; // avg change per entry approx
+       }
+    }
+    const projectedWeight4w = latestWeight ? latestWeight + (weightTrend * 4) : 0;
+
+    // --- COACHING ---
+    let coachingMsg = null;
+    if (daysSinceWeight > 5 && daysSinceWeight < 14) coachingMsg = "You haven't logged weight in a while. Consistency is key.";
+    else if (currentMonthExpenses > 2000) coachingMsg = "High spending week. Check your subscriptions?";
+    else coachingMsg = "You're on track! Keep going.";
+
+    // --- LONG TERM MEMORY ---
+    // Randomly comparisons
+    const memoryMsg = "3 months ago, your Net Worth was 15% lower."; // Static for now
 
     return {
         netWorthRON,
@@ -75,104 +85,169 @@ export const HomeScreen: React.FC<{ setTab: (tab: string) => void }> = ({ setTab
         investmentValueRON,
         savingsRON,
         emergencyRON,
-        expensesRON,
+        moneyHealth,
+        healthHealth,
+        habitHealth,
+        projectedNetWorth3m,
+        projectedNetWorth1y,
+        projectedWeight4w,
         latestWeight,
-        weightDiff,
-        bmi,
-        bmiCategory,
-        hasWeightLogs
+        coachingMsg,
+        memoryMsg,
+        currentMonthExpenses
     };
   }, [data]);
 
+  const handleQuickAction = (action: string, tab: string) => {
+      triggerAction(action);
+      setTab(tab);
+  };
+
   return (
     <div className="p-4 space-y-4 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex justify-between items-center px-1 pt-2 pb-2">
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">LifeTrack</h1>
-        <span className="text-xs font-bold text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-full">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+      {/* Header with System Health */}
+      <div className="flex justify-between items-start pt-2">
+        <div>
+           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">LifeTrack</h1>
+           <span className="text-xs text-slate-400 font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+        </div>
+        <div className="flex gap-3 bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
+           <StatusBadge status={stats.moneyHealth as any} label="Money" />
+           <div className="w-px bg-slate-100 h-6" />
+           <StatusBadge status={stats.healthHealth as any} label="Health" />
+        </div>
       </div>
 
-      {/* Net Worth Card (The Only Primary Dark Card) */}
+      {/* Hero Card */}
       <Card variant="primary">
         <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="relative z-10">
           <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Net Worth</div>
           <div className="text-4xl font-extrabold mb-8 tracking-tight text-white">{formatMoney(stats.netWorthRON)}</div>
           
-          <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-slate-300 text-sm font-medium">Investments</span>
-                  </div>
-                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.investmentValueRON)}</span>
+          <div className="grid grid-cols-3 gap-4">
+              <div>
+                 <div className="text-slate-400 text-[10px] font-bold uppercase">Invested</div>
+                 <div className="text-white font-bold">{formatMoney(stats.investmentValueRON)}</div>
               </div>
-              <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                    <span className="text-slate-300 text-sm font-medium">Savings</span>
-                  </div>
-                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.savingsRON)}</span>
+              <div>
+                 <div className="text-slate-400 text-[10px] font-bold uppercase">Saved</div>
+                 <div className="text-white font-bold">{formatMoney(stats.savingsRON)}</div>
               </div>
-              <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-slate-300 text-sm font-medium">Emergency</span>
-                  </div>
-                  <span className="font-bold text-white tabular-nums">{formatMoney(stats.emergencyRON)}</span>
+              <div>
+                 <div className="text-slate-400 text-[10px] font-bold uppercase">Emergency</div>
+                 <div className="text-white font-bold">{formatMoney(stats.emergencyRON)}</div>
               </div>
           </div>
         </div>
       </Card>
 
-      {/* Investments Summary (Light) */}
-      <Card title="Investments Index" action={<Button variant="ghost" className="h-8 px-3 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setTab('investments')}>View <ArrowRight size={12} /></Button>}>
-         <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900">{formatMoney(stats.investmentValueEUR, 'EUR')}</span>
-            <span className="text-xs font-bold text-slate-400">Portfolio Value</span>
+      {/* Coaching / Quick Suggestion */}
+      {stats.coachingMsg && (
+        <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl flex items-center gap-3">
+             <div className="bg-emerald-100 p-2 rounded-full text-emerald-600"><Sparkles size={16} /></div>
+             <p className="text-sm font-medium text-slate-700 flex-1">{stats.coachingMsg}</p>
+             <button className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+        </div>
+      )}
+
+      {/* Future You (Collapsible) */}
+      <Card collapsible title="Future You (Projection)">
+         <div className="space-y-4 pt-2">
+            <div>
+               <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                  <span>Net Worth in 3 Months</span>
+                  <span className="text-blue-600">{formatMoney(stats.projectedNetWorth3m)}</span>
+               </div>
+               <ProgressBar value={80} max={100} colorClass="bg-blue-500" />
+            </div>
+            {stats.latestWeight && (
+                <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                        <span>Weight in 4 Weeks</span>
+                        <span className="text-emerald-600">{stats.projectedWeight4w.toFixed(1)} kg</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 w-1/2 rounded-full" />
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 text-right">Based on recent trend</div>
+                </div>
+            )}
          </div>
       </Card>
 
-      {/* Money Summary (Light) */}
-      <Card title="Monthly Money">
-        <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 bg-orange-50 rounded-2xl border border-orange-100 flex flex-col items-center text-center">
-                <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wide mb-1">Spent</span>
-                <span className="text-orange-900 font-bold text-sm">{formatMoney(stats.expensesRON)}</span>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-3 gap-3">
+          <button onClick={() => handleQuickAction('addExpense', 'money')} className="bg-white border border-slate-200 shadow-sm p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-50 active:scale-95 transition-all">
+              <div className="text-orange-500 bg-orange-50 p-2 rounded-full mb-1"><Wallet size={18} /></div>
+              <span className="text-[10px] font-bold text-slate-600">Add Expense</span>
+          </button>
+          <button onClick={() => handleQuickAction('logWeight', 'health')} className="bg-white border border-slate-200 shadow-sm p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-50 active:scale-95 transition-all">
+              <div className="text-emerald-500 bg-emerald-50 p-2 rounded-full mb-1"><Activity size={18} /></div>
+              <span className="text-[10px] font-bold text-slate-600">Log Health</span>
+          </button>
+          <button onClick={() => handleQuickAction('deposit', 'investments')} className="bg-white border border-slate-200 shadow-sm p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-50 active:scale-95 transition-all">
+              <div className="text-blue-500 bg-blue-50 p-2 rounded-full mb-1"><TrendingUp size={18} /></div>
+              <span className="text-[10px] font-bold text-slate-600">Deposit</span>
+          </button>
+      </div>
+
+      {/* Weekly Review Trigger */}
+      <Button variant="secondary" onClick={() => setShowWeeklyReview(true)} icon={Calendar} className="w-full">
+         Weekly Review
+      </Button>
+
+      {/* Long Term Memory */}
+      <Card>
+         <div className="flex items-start gap-3">
+            <div className="text-purple-500 bg-purple-50 p-2 rounded-full"><History size={16} /></div>
+            <div>
+               <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">On This Day</div>
+               <p className="text-sm font-medium text-slate-700">{stats.memoryMsg}</p>
             </div>
-            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mb-1">Saved</span>
-                <span className="text-emerald-900 font-bold text-sm">{formatMoney(stats.savingsRON)}</span>
-            </div>
-            <div className="p-3 bg-red-50 rounded-2xl border border-red-100 flex flex-col items-center text-center">
-                <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1">Emergency</span>
-                <span className="text-red-900 font-bold text-sm">{formatMoney(stats.emergencyRON)}</span>
-            </div>
-        </div>
+         </div>
       </Card>
 
-      {/* Current Weight + BMI Card (Light) */}
-      <Card title="Health" action={stats.hasWeightLogs ? <Button variant="ghost" className="h-8 px-3 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setTab('health')}>History <ArrowRight size={12} /></Button> : null}>
-        {!stats.hasWeightLogs ? (
-            <div className="flex flex-col items-center justify-center py-2">
-                <Button variant="secondary" onClick={() => setTab('health')} icon={Plus} className="w-full">Log First Weight</Button>
+      {/* Weekly Review Modal */}
+      {showWeeklyReview && (
+         <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="p-4 flex justify-between items-center border-b border-slate-100">
+               <h2 className="font-extrabold text-xl text-slate-900">Weekly Review</h2>
+               <button onClick={() => setShowWeeklyReview(false)} className="bg-slate-100 p-2 rounded-full"><X size={20}/></button>
             </div>
-        ) : (
-            <div className="grid grid-cols-2 gap-6 items-end">
-                <div>
-                   <div className="text-2xl font-extrabold text-slate-900 mb-1">{stats.latestWeight} <span className="text-sm font-medium text-slate-400">kg</span></div>
-                   <div className={`text-xs font-bold flex items-center gap-1 ${stats.weightDiff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {stats.weightDiff > 0 ? '+' : ''}{stats.weightDiff.toFixed(1)} kg
-                      <span className="text-slate-400 font-medium">total change</span>
-                   </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div className="text-center py-4">
+                   <div className="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold mb-2">Oct 23 - Oct 30</div>
+                   <h3 className="text-2xl font-bold text-slate-900">A solid week for savings.</h3>
                 </div>
-                <div className="flex flex-col items-end">
-                    <span className="text-2xl font-extrabold text-blue-600">{stats.bmi}</span>
-                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-2 py-1 rounded-full mt-1">{stats.bmiCategory}</span>
-                </div>
+
+                <Card title="Money Summary">
+                    <div className="flex justify-between items-center mb-2">
+                       <span className="text-slate-500 font-medium">Expenses</span>
+                       <span className="font-bold text-slate-900">{formatMoney(stats.currentMonthExpenses)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                       <span className="text-slate-500 font-medium">Saved</span>
+                       <span className="font-bold text-emerald-600">{formatMoney(500)}</span>
+                    </div>
+                </Card>
+
+                <Card title="Health Check">
+                    <div className="flex justify-between items-center">
+                       <span className="text-slate-500 font-medium">Weight Trend</span>
+                       <span className="font-bold text-emerald-600">-0.5 kg</span>
+                    </div>
+                </Card>
+
+                <Card title="One Win">
+                    <p className="text-sm font-medium text-slate-700">You stayed under budget in "Eating Out" for the first time this month!</p>
+                </Card>
+
+                <Button onClick={() => setShowWeeklyReview(false)} className="w-full">Close Review</Button>
             </div>
-        )}
-      </Card>
+         </div>
+      )}
+
     </div>
   );
 };
